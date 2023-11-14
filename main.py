@@ -3,9 +3,7 @@ import sys
 from pygame.locals import *
 from random import randrange, choice
 
-
 #_________________________  Configuración  _________________________
-
 
 # Inicializar modulos de Pygame
 pygame.init()
@@ -19,7 +17,7 @@ screen = pygame.display.set_mode(resolution)
 pygame.display.set_caption("Test")
 
 # Imagenes
-fondo = pygame.transform.scale(pygame.image.load("./assets/img/Protagonistayotros/fondo.jpg"), (WIDTH, HEIGHT))
+fondo = pygame.transform.scale(pygame.image.load("./assets/img/Protagonistayotros/fondmenu.JPG"), (WIDTH, HEIGHT))
 image_player = pygame.image.load("./assets/img/Protagonistayotros/prota.png")
 
 image_fruit_1 = pygame.image.load("./assets/img/Frutas/PNG frutas/banana.png")
@@ -48,7 +46,10 @@ pygame.mixer.music.load("./assets/sounds/musica.mp3")
 pygame.mixer.music.play(-1)#-1 loop infinito, 1 por defecto suena 2 veces
 pygame.mixer.music.set_volume(0.5)
 
+#efectos especiales
+bonus = pygame.mixer.Sound("./assets/sounds/Magia.mp3")
 
+is_menu_active = True
 
 #_________________________   Funciones   _________________________
 
@@ -77,6 +78,44 @@ def cargar_fastfood(lista, cantidad, imagen=None):
     for i in range(cantidad):
         lista.append(create_rect(imagen=obtener_valor_aleatorio(image_fastfood_list), left=randrange(0, WIDTH-50), top=randrange(HEIGHT, HEIGHT*2)))
 
+def menu_inicio():
+    menu = pygame.font.SysFont(None, 24)
+    fuente_titulo = pygame.font.SysFont(None, 50)
+
+    titulo = fuente_titulo.render("Comer frutas!!", True, black)
+    titulo_rect = titulo.get_rect(center=(WIDTH // 2, HEIGHT // 4))
+
+    reglas = menu.render("Comé frutas para sumar puntaje. La comida chatarra te saca puntos", True, black)
+    reglas_rect = reglas.get_rect(center=(WIDTH // 2, HEIGHT // 2))
+
+    inicio = menu.render("Presioná ESPACIO para empezar", True, black)
+    inicio_rect = inicio.get_rect(center=(WIDTH // 2, HEIGHT * 3 // 4 - 30))  
+
+    salir = menu.render("Presiona ESC para salir", True, black)
+    salir_rect = salir.get_rect(center=(WIDTH // 2, HEIGHT * 3 // 4 + 30))  
+
+    fondo_menu = pygame.transform.scale(pygame.image.load("./assets/img/Protagonistayotros/fondo.jpg"), (WIDTH, HEIGHT))
+    screen.blit(fondo_menu, origen)
+
+    screen.blit(titulo, titulo_rect)
+    screen.blit(reglas, reglas_rect)
+    screen.blit(inicio, inicio_rect)
+    screen.blit(salir, salir_rect)
+
+    pygame.display.flip()
+
+    waiting_for_key = True
+    while waiting_for_key:
+        for event in pygame.event.get():
+            if event.type == QUIT:
+                pygame.quit()
+                sys.exit()
+            elif event.type == KEYDOWN:
+                if event.key == K_SPACE:
+                    waiting_for_key = False
+                elif event.key == K_ESCAPE:
+                    pygame.quit()
+                    sys.exit()
 
 #_________________________  Parametros  __________________________
 
@@ -96,11 +135,16 @@ f_right = False
 font_score = pygame.font.Font(None, 36)
 fuente = pygame.font.SysFont(None,48)
 score = 0
-puntaje_previo = score
-vidas = 3
+
+velocidad_frutas = 2
+velocidad_fast_food = 2
 
 tiempo_aparicion_frutas = pygame.time.get_ticks()
 tiempo_aparicion_fastfood = pygame.time.get_ticks()
+
+vidas = 20
+fuente_vidas = pygame.font.Font(None, 36)
+
 #_________________________________________________________________
 
 
@@ -138,7 +182,14 @@ while is_running:
 
             if event.key == K_a:
                 f_left = False
-                
+
+        if vidas < 0:
+            pygame.quit()
+            exit()
+
+        if is_menu_active:
+            menu_inicio()
+            is_menu_active = False
     #_________________________  Configuración de movimientos  _________________________
 
     # Jugador -----------------
@@ -160,17 +211,9 @@ while is_running:
         print("Pasaron 5 segundos")
 
    
-
-
-    velocidad_frutas = 3 + score // 5
-    print(velocidad_frutas)
     for fruit in fruits_list[:]:
         # Guardar la posición actual de la fruta
         pos_actual = fruit["rect"].topleft
-
-        if score != puntaje_previo:
-            puntaje_previo = score
-            print(velocidad_frutas)
 
         
         if fruit["rect"].top > 0 and not fruit["gravedad"]:
@@ -189,7 +232,10 @@ while is_running:
             if detectar_colision_circulos(fruit["rect"], player["rect"]):
                 fruits_list.remove(fruit)
                 score += 1
-                print("colision")
+                if score >= 0 and score % 5 == 0:
+                    velocidad_frutas += 1
+                    print(velocidad_frutas)
+                    print("colision")
         
 
  ######### FAST FOOD
@@ -204,13 +250,6 @@ while is_running:
         # Guardar la posición actual de la fastfood
         pos_actual = fastfood["rect"].topleft
         
-
-        # Mover FAST FOOD
-        velocidad_fastfood = 3 + score // 5
-        if score != puntaje_previo:
-            velocidad_fastfood = 3 + score // 5
-            puntaje_previo = score
-
             
         if fastfood["rect"].top > 0 and not fastfood["gravedad"]:
             fastfood["rect"].top -= 3
@@ -228,6 +267,9 @@ while is_running:
                 fastfood_list.remove(fastfood)
                 score -= 1
                 vidas -= 1
+                velocidad_fast_food = velocidad_frutas
+                print(f'VF: {velocidad_fast_food}')
+                
                 print("colision")
         
         
@@ -272,6 +314,10 @@ while is_running:
     score_text = font_score.render(f"Score: {score}", True, white)
     rect_score = score_text.get_rect()
     screen.blit(score_text, (350,10))
+    #vidas
+    vidas_texto = fuente_vidas.render(f'Vidas: {vidas}', True, white)
+    screen.blit(vidas_texto, (10, 10))
+
 
     # Frutas
     for fruit in fruits_list:
@@ -286,7 +332,3 @@ while is_running:
 
 
 #_________________________  GAME OVER  _________________________ 
-# velocidad_frutas = 3 + score // 5
-# if score != puntaje_previo:
-        #     velocidad_frutas = 3 + score // 5
-        #     puntaje_previo = score
