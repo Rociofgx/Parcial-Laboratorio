@@ -1,5 +1,6 @@
 import pygame
 import sys
+import json 
 from pygame.locals import *
 from random import randrange, choice
 
@@ -7,6 +8,11 @@ from random import randrange, choice
 
 # Inicializar modulos de Pygame
 pygame.init()
+try:
+    with open("data/score.json", "r") as file:
+        data = json.load(file)
+except FileNotFoundError:
+    print("No se ha encontrado archivo")
 
 # Pantalla
 origen = (0, 0)
@@ -48,12 +54,44 @@ pygame.mixer.music.set_volume(0.5)
 
 #efectos especiales
 bonus = pygame.mixer.Sound("./assets/sounds/Magia.mp3")
+game_over_musica = pygame.mixer.Sound("./assets/sounds/game over.mp3")
 
 is_menu_active = True
+is_pausa = False
 
 #_________________________   Funciones   _________________________
 
+def pausa():
+    global is_pausa
+    clock = pygame.time.Clock()
+    pygame.display.set_caption("Dieta!!")
+    screen = pygame.display.set_mode((WIDTH, HEIGHT))
+    pygame.mixer.music.pause()
+    font = pygame.font.Font(None, 26)
+    pausa_texto = "¡Mucha Fruta! Presiona 'ESC' para continuar, o 'E' para salir del juego"
 
+    waiting_for_key = True
+    while waiting_for_key:  
+        clock.tick(60)
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_RETURN:
+                    pygame.mixer.music.unpause()
+                    is_pausa = False
+                    waiting_for_key = False  
+                elif event.key == pygame.K_e:
+                    pygame.quit()
+                    sys.exit()
+
+        pause_text_surface = font.render(pausa_texto, True, (0, 0, 0))
+        screen.fill((255, 255, 255))
+        screen.blit(pause_text_surface, (WIDTH / 2 - 260, HEIGHT - 60))
+        pygame.display.flip()
 def create_rect(imagen=None, left=0, top=0, width=50, height=50, color=red, gravedad=False):
     rect = pygame.draw.rect(screen, color, (left, top, height, width))
     if imagen:
@@ -117,6 +155,36 @@ def menu_inicio():
                     pygame.quit()
                     sys.exit()
 
+def game_over_menu():
+    game_over_font = pygame.font.SysFont(None, 72)
+    game_over_text = game_over_font.render(f'¡Has perdido!', True, white)
+    game_over_rect = game_over_text.get_rect(center=(WIDTH // 2, HEIGHT // 2))
+
+    retry_font = pygame.font.SysFont(None, 36)
+    retry_text = retry_font.render(f'Tu score es de {score}', True, white)
+    retry_rect = retry_text.get_rect(center=(WIDTH // 2, HEIGHT // 2 + 50))
+
+    fondo_menu_go = pygame.transform.scale(pygame.image.load("./assets/img/Protagonistayotros/fondmenu.JPG"), (WIDTH, HEIGHT))
+    screen.blit(fondo_menu_go, origen)
+
+    screen.blit(game_over_text, game_over_rect)
+    screen.blit(retry_text, retry_rect)
+
+    pygame.display.flip()
+    pygame.mixer.music.stop()
+    game_over_musica.play()
+    
+    waiting_for_key = True
+    while waiting_for_key:
+        for event in pygame.event.get():
+            if event.type == QUIT:
+                pygame.quit()
+                sys.exit()
+            elif event.type == KEYDOWN:
+                if event.key == K_r:
+                    waiting_for_key = False
+  
+
 #_________________________  Parametros  __________________________
 
 player = create_rect(image_player, 100, HEIGHT-100, 100, 100, red)
@@ -142,8 +210,10 @@ velocidad_fast_food = 2
 tiempo_aparicion_frutas = pygame.time.get_ticks()
 tiempo_aparicion_fastfood = pygame.time.get_ticks()
 
-vidas = 20
+vidas = 1
 fuente_vidas = pygame.font.Font(None, 36)
+
+game_over = False
 
 #_________________________________________________________________
 
@@ -154,7 +224,7 @@ is_running = True
 
 
 while is_running:
-
+    
     # Configuración de los FPS
     clock.tick(60)
 
@@ -162,34 +232,45 @@ while is_running:
 
 
     for event in pygame.event.get():
-
         if event.type == QUIT:
             pygame.quit()
-            exit()
+            sys.exit()
 
         if event.type == KEYDOWN:
-            
             if event.key == K_d:
                 f_right = True
 
             if event.key == K_a:
                 f_left = True
 
+            if event.key == K_p:  
+                is_pausa = not is_pausa 
+
+            if event.key == K_ESCAPE:
+                is_pausa = False 
+
         if event.type == KEYUP:
-            
             if event.key == K_d:
                 f_right = False
 
             if event.key == K_a:
                 f_left = False
 
-        if vidas < 0:
-            pygame.quit()
-            exit()
+    
+    if is_pausa:
+        pausa()
+        continue
 
-        if is_menu_active:
-            menu_inicio()
-            is_menu_active = False
+    
+
+    if is_menu_active:
+        menu_inicio()
+        is_menu_active = False
+        
+    if vidas < 0:
+        game_over = True
+        game_over_menu()
+
     #_________________________  Configuración de movimientos  _________________________
 
     # Jugador -----------------
@@ -199,6 +280,7 @@ while is_running:
     if f_left and player["rect"].left > 0:
         player["rect"].left -= 10
 
+    
 
     #_________________________   Configuración de Colisiones   _________________________
 
@@ -232,7 +314,7 @@ while is_running:
             if detectar_colision_circulos(fruit["rect"], player["rect"]):
                 fruits_list.remove(fruit)
                 score += 1
-                if score >= 0 and score % 5 == 0:
+                if score % 5 == 0:
                     velocidad_frutas += 1
                     print(velocidad_frutas)
                     print("colision")
