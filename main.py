@@ -3,24 +3,14 @@ import sys
 import json 
 from pygame.locals import *
 from random import randrange, choice
+from config import *
 
 #_________________________  Configuración  _________________________
 
 # Inicializar modulos de Pygame
-
 pygame.init()
-try:
-    with open("data/score.json", "r") as file:
-        data = json.load(file)
-except FileNotFoundError:
-    print("No se ha encontrado archivo")
-
 
 # Pantalla
-origen = (0, 0)
-WIDTH = 800
-HEIGHT = 600
-resolucion = WIDTH , HEIGHT 
 screen = pygame.display.set_mode(resolucion)
 pygame.display.set_caption("Dieta!!")
 
@@ -44,11 +34,6 @@ image_fastfood_list = [image_fastfood_1, image_fastfood_2, image_fastfood_3, ima
 # Configuración de reloj
 clock = pygame.time.Clock()
 
-# Colores
-negro = (0,0,0)
-rojo = (255,0,0)
-blanco = (255,255,255)
-
 #musica
 pygame.mixer.music.load("./assets/sounds/musica.mp3")
 pygame.mixer.music.play(-1)#-1 loop infinito, 1 por defecto suena 2 veces
@@ -60,9 +45,6 @@ game_over_musica = pygame.mixer.Sound("./assets/sounds/game over.mp3")
 musica_pausa = pygame.mixer.Sound("./assets/sounds/pausa.mp3")
 colision_fast_food = pygame.mixer.Sound("./assets/sounds/colision.mp3")
 
-is_menu_active = True
-is_pausa = False
-FPS = 60
 #_________________________   Funciones   _________________________
 
 
@@ -153,7 +135,10 @@ def game_over_menu():
     pygame.display.flip()
     pygame.mixer.music.stop()
     game_over_musica.play()
-
+    if score > score_record:
+        with open("./data/score.json", "w") as file:
+                file.write(str(score_record))
+    
     waiting_for_key = True
     while waiting_for_key:
         for event in pygame.event.get():
@@ -163,6 +148,7 @@ def game_over_menu():
             elif event.type == KEYDOWN:
                 if event.key == K_r:
                     waiting_for_key = False
+            
   
 def pausa():
     """ Coloco la palabra GLOBAL para indicarle que es una variable global y no una local. Si no lo colocase, Pygame lo tomaría como una variable dentro de la función y  y no afectaría al resto del código, que es lo que queremos hacer. La variable "is_pausa" es una bandera que indica cuando el juego está o no en pausa. """
@@ -202,14 +188,16 @@ def pausa():
         screen.blit(pausa_text_surface, text_rect)
         pygame.display.flip()
 
+"""Se almacena el valor guardado en el archivo "score.json"""
+try:
+    with open("./data/score.json", "r") as file: 
+        score_record = float(file.read()) 
 
-# def leer_puntaje():
-#     try:
-#         with open("data/score.json", "r") as file:
-#             data = json.load(file)
-#     except FileNotFoundError:
-#         print("No se ha encontrado archivo")
-
+except FileNotFoundError:
+    print("No existe 'score.json'. Por lo tanto, se creará uno.")
+    with open("./data/score.json", "w") as file: 
+        file.write("0") 
+        score_record = 0
 #_________________________  Parametros  __________________________
 """ Se crea al jugador"""
 jugador = crear_rect(imagen_jugador, 100, HEIGHT-100, 100, 100, rojo)
@@ -232,6 +220,7 @@ fuente_score = pygame.font.Font(None, 36)
 fuente = pygame.font.SysFont(None,48)
 score = 0
 
+
 """Configuracion de frutas y fast food. Se colocan los tiempos de aparicion inicial para ambos elementos"""
 velocidad_frutas = 2
 velocidad_fast_food = 2
@@ -242,6 +231,8 @@ tiempo_aparicion_fastfood = pygame.time.get_ticks()
 """Configuración de vidas y la fuente."""
 vidas = 3
 fuente_vidas = pygame.font.Font(None, 36)
+
+
 
 #_________________________________________________________________
 
@@ -362,7 +353,7 @@ while is_running:
 
         
     for fastfood in fastfood_lista[:]:
-        # Guardar la posición actual de la fastfood
+        # Guarda la posición actual de la fastfood
         pos_actual = fastfood["rect"].topleft
         
             
@@ -417,7 +408,7 @@ while is_running:
         # Verifica la colisión comparando la distancia con la suma de los radios
         return distancia <= (r1 + r2)
 
-    """Verifica si un punto está dentro de un rectángulo tomando (x,y) y un rect. Se mira si las coordenadas están dentro del limite del rectangulo. Devuelve True si están dentro del mismo"""
+    """Verifica si un punto está dentro de un rectángulo tomando (x,y) y un rect. Se mira si las coordenadas están dentro del limite del rectangulo. Devuelve True si están dentro del punto"""
     def punto_en_rectangulo(punto, rect):
         x, y = punto
         return rect.left <= x <= rect.right and rect.top <= y <= rect.bottom
@@ -437,7 +428,10 @@ while is_running:
     #vidas
     vidas_texto = fuente_vidas.render(f'Vidas: {vidas}', True, blanco)
     screen.blit(vidas_texto, (10, 10))
-
+    #ultimo score
+    record_texto = fuente_score.render(f"Record: {score}", True, blanco)
+    rect_record = record_texto.get_rect()
+    screen.blit(record_texto, (600,10))
 
     # Frutas
     for fruit in frutas_lista:
@@ -452,3 +446,5 @@ while is_running:
 
 
 #_________________________  GAME OVER  _________________________ 
+
+
